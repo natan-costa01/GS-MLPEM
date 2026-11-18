@@ -53,7 +53,7 @@ else:
 # H0: média <= média populacional
 # H1: média > média populacional
 
-amostra_b = km.sample(n=25, random_state=43)
+amostra_b = km.sample(n=25, random_state=44)
 
 media_b = amostra_b.mean()
 alpha_b = 0.09

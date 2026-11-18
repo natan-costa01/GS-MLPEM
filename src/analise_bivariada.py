@@ -8,28 +8,26 @@
 # Natan Silva da Costa - RM 573100
 
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import linregress, f
+import seaborn as sns
+import statsmodels.api as sm
 
-# 1. Carregar a base tratada
+# 1. Carregar os dados
 df = pd.read_csv("data/frota_tratada.csv", sep=";")
 
-# Selecionar as duas variáveis
 dados = df[["KM Real", "Custo Analise"]].dropna()
-
-# Considerar apenas viagens com distância positiva
 dados = dados[dados["KM Real"] > 0]
-
-x = dados["KM Real"]
-y = dados["Custo Analise"]
 
 print("ANÁLISE BIVARIADA")
 print("Quantidade de registros:", len(dados))
 
 # 2. Gráfico de dispersão
-plt.figure(figsize=(9, 5))
-plt.scatter(x, y, alpha=0.3)
+sns.scatterplot(
+    data=dados,
+    x="KM Real",
+    y="Custo Analise",
+    alpha=0.3
+)
 
 plt.title("Distância percorrida x Custo da viagem")
 plt.xlabel("KM Real")
@@ -40,102 +38,81 @@ plt.savefig("resultados/graficos/dispersao.png")
 plt.show()
 
 # 3. Covariância e correlação de Pearson
-covariancia = x.cov(y)
-correlacao = x.corr(y)
+covariancia = dados["KM Real"].cov(dados["Custo Analise"])
+correlacao = dados["KM Real"].corr(dados["Custo Analise"])
 
 print("\nCOVARIÂNCIA E CORRELAÇÃO")
 print(f"Covariância: {covariancia:.2f}")
 print(f"Correlação de Pearson: {correlacao:.4f}")
 
-if correlacao > 0:
-    print("Correlação positiva")
-elif correlacao < 0:
-    print("Correlação negativa")
-else:
-    print("Correlação nula")
-
-# 4. Gráfico de correlação de Pearson
-matriz = dados.corr()
-
+# 4. Gráfico de correlação
 plt.figure(figsize=(6, 5))
-plt.imshow(matriz, cmap="coolwarm", vmin=-1, vmax=1)
 
-plt.xticks([0, 1], matriz.columns)
-plt.yticks([0, 1], matriz.columns)
+sns.heatmap(
+    dados.corr(),
+    annot=True,
+    cmap="coolwarm",
+    vmin=-1,
+    vmax=1
+)
 
-for i in range(2):
-    for j in range(2):
-        plt.text(
-            j, i,
-            f"{matriz.iloc[i, j]:.2f}",
-            ha="center",
-            va="center"
-        )
-
-plt.colorbar(label="Correlação")
 plt.title("Correlação de Pearson")
-
 plt.tight_layout()
+
 plt.savefig("resultados/graficos/correlacao_bivariada.png")
 plt.show()
 
 # 5. Regressão linear simples
-regressao = linregress(x, y)
+x = sm.add_constant(dados["KM Real"])
+y = dados["Custo Analise"]
 
-a = regressao.intercept
-b = regressao.slope
+modelo = sm.OLS(y, x).fit()
 
 print("\nREGRESSÃO LINEAR SIMPLES")
-print(f"Equação: Y = {a:.2f} + {b:.4f} * X")
+print(modelo.summary())
 
-# Gráfico de dispersão com reta
-plt.figure(figsize=(9, 5))
+a = modelo.params["const"]
+b = modelo.params["KM Real"]
 
-plt.scatter(x, y, alpha=0.3, label="Dados reais")
+print("\nEQUAÇÃO DA REGRESSÃO")
+print(f"Y = {a:.2f} + {b:.4f} * X")
 
-valores_x = np.linspace(x.min(), x.max(), 100)
-valores_y = a + b * valores_x
-
-plt.plot(
-    valores_x,
-    valores_y,
-    color="red",
-    label="Regressão Linear"
+# 6. Gráfico com reta de regressão
+sns.regplot(
+    data=dados,
+    x="KM Real",
+    y="Custo Analise",
+    ci=None,
+    scatter_kws={"alpha": 0.3},
+    line_kws={"color": "red"}
 )
 
 plt.title("Regressão Linear - KM x Custo")
 plt.xlabel("KM Real")
 plt.ylabel("Custo Real (R$)")
-plt.legend()
 plt.grid(True)
 
 plt.savefig("resultados/graficos/regressao_simples.png")
 plt.show()
 
-# 6. Verificação do modelo
-r2 = regressao.rvalue ** 2
-
-n = len(dados)
-f_calculado = (r2 / (1 - r2)) * (n - 2)
-valor_p_f = f.sf(f_calculado, 1, n - 2)
-
+# 7. Avaliação do modelo
 print("\nAVALIAÇÃO DO MODELO")
-print(f"R²: {r2:.4f}")
-print(f"R² em porcentagem: {r2 * 100:.2f}%")
-print(f"Teste F: {f_calculado:.4f}")
-print(f"Valor-p do Teste F: {valor_p_f:.6f}")
+print(f"R²: {modelo.rsquared:.4f}")
+print(f"R² em porcentagem: {modelo.rsquared * 100:.2f}%")
+print(f"Teste F: {modelo.fvalue:.4f}")
+print(f"Valor-p: {modelo.f_pvalue:.6f}")
 
-if valor_p_f < 0.05:
+if modelo.f_pvalue < 0.05:
     print("Regressão estatisticamente significativa")
 else:
     print("Regressão não significativa")
 
-# 7. Previsão
-km_previsto = 100
-custo_previsto = a + b * km_previsto
+# 8. Previsão
+km = 100
+previsao = a + b * km
 
 print("\nPREVISÃO")
-print(f"Distância: {km_previsto} km")
-print(f"Custo previsto: R$ {custo_previsto:.2f}")
+print(f"Distância: {km} km")
+print(f"Custo previsto: R$ {previsao:.2f}")
 
 print("\nAnálise bivariada finalizada!")
